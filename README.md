@@ -188,3 +188,12 @@ The audio-engine's pure math (Hz→bin bucketing, band averaging, envelope
 smoothing, the source-node reuse guard) is unit tested — that's the part
 that can silently be wrong. The three renderers are inherently visual and
 are verified by eye on the demo page rather than pixel-tested.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, testing,
+and build instructions.
+
+## License
+
+Proprietary — all rights reserved. See [LICENSE](./LICENSE).

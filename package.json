@@ -9,6 +9,7 @@
     "src"
   ],
   "license": "UNLICENSED",
+  "author": "Alex-stok",
   "scripts": {
     "test": "node --test \"test/**/*.test.js\"",
     "build": "node scripts/build.mjs",
@@ -16,5 +17,8 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
