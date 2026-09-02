@@ -68,3 +68,93 @@ export function applyEnvelope(previous, target, dt, attackTau, decayTau) {
   const k = tau > 0 ? 1 - Math.exp(-dt / tau) : 1;
   return previous + (target - previous) * k;
 }
+
+/**
+ * Returns the existing entry in `sourceMap` for `key`, or creates one via
+ * `createSource()` and stores it. Guarantees `createSource` runs at most
+ * once per key — this is what lets AudioEngine#connectMediaElement be
+ * called repeatedly on the same <audio> element without throwing (the Web
+ * Audio API throws if you call createMediaElementSource twice on the same
+ * element).
+ */
+export function getOrCreateSource(sourceMap, key, createSource) {
+  let source = sourceMap.get(key);
+  if (!source) {
+    source = createSource();
+    sourceMap.set(key, source);
+  }
+  return source;
+}
+
+/**
+ * Wraps a Web Audio AnalyserNode and exposes smoothed bass/mid/treble
+ * energy plus the raw spectrum, once per animation frame via update(dt).
+ * Browser-only (needs window.AudioContext) — check isSupported first.
+ */
+export class AudioEngine {
+  constructor({ fftSize = 1024, attackTau = 0.03, decayTau = 0.25 } = {}) {
+    this.fftSize = fftSize;
+    this.attackTau = attackTau;
+    this.decayTau = decayTau;
+    this.ctx = null;
+    this.analyser = null;
+    this.freqData = null;
+    this.sourceNodes = new WeakMap();
+    this.bands = { bass: 0, mid: 0, treble: 0, spectrum: new Uint8Array(0) };
+  }
+
+  static get isSupported() {
+    return typeof window !== 'undefined' && !!(window.AudioContext || window.webkitAudioContext);
+  }
+
+  _ensureContext() {
+    if (this.ctx) return this.ctx;
+    if (!AudioEngine.isSupported) return null;
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new Ctor();
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = this.fftSize;
+    this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
+    return this.ctx;
+  }
+
+  /** Connects a live <audio>/<video> element as the analysis source. */
+  connectMediaElement(mediaElement) {
+    const ctx = this._ensureContext();
+    if (!ctx) return false;
+    const source = getOrCreateSource(this.sourceNodes, mediaElement, () => {
+      const s = ctx.createMediaElementSource(mediaElement);
+      s.connect(ctx.destination);
+      return s;
+    });
+    source.connect(this.analyser);
+    return true;
+  }
+
+  /** Taps an existing AudioNode (a host's own Web Audio graph) as the source. */
+  connectAudioNode(node) {
+    const ctx = this._ensureContext();
+    if (!ctx) return false;
+    node.connect(this.analyser);
+    return true;
+  }
+
+  /** Resumes a suspended AudioContext — call this from a user gesture (e.g. play). */
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  }
+
+  /** Reads the current frequency data and advances the smoothed bands. Call once per frame. */
+  update(dt) {
+    if (!this.analyser) return this.bands;
+    this.analyser.getByteFrequencyData(this.freqData);
+    const target = bucketBands(this.freqData, this.ctx.sampleRate, this.fftSize);
+    this.bands = {
+      bass: applyEnvelope(this.bands.bass, target.bass, dt, this.attackTau, this.decayTau),
+      mid: applyEnvelope(this.bands.mid, target.mid, dt, this.attackTau, this.decayTau),
+      treble: applyEnvelope(this.bands.treble, target.treble, dt, this.attackTau, this.decayTau),
+      spectrum: this.freqData,
+    };
+    return this.bands;
+  }
+}

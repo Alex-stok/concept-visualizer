@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hzToBinIndex, bucketBands, applyEnvelope } from '../src/audio-engine.js';
+import { hzToBinIndex, bucketBands, applyEnvelope, getOrCreateSource } from '../src/audio-engine.js';
 
 test('hzToBinIndex maps 0Hz to bin 0', () => {
   assert.equal(hzToBinIndex(0, 44100, 1024), 0);
@@ -43,4 +43,28 @@ test('applyEnvelope falls toward target using decayTau', () => {
 
 test('applyEnvelope with dt=0 does not move', () => {
   assert.equal(applyEnvelope(0.5, 1, 0, 0.03, 0.25), 0.5);
+});
+
+test('getOrCreateSource only calls createSource once per key', () => {
+  const map = new Map();
+  const key = {};
+  let calls = 0;
+  const make = () => { calls += 1; return { id: calls }; };
+
+  const first = getOrCreateSource(map, key, make);
+  const second = getOrCreateSource(map, key, make);
+
+  assert.equal(calls, 1);
+  assert.strictEqual(first, second);
+});
+
+test('getOrCreateSource creates separate sources for different keys', () => {
+  const map = new Map();
+  let calls = 0;
+  const make = () => { calls += 1; return { id: calls }; };
+
+  getOrCreateSource(map, {}, make);
+  getOrCreateSource(map, {}, make);
+
+  assert.equal(calls, 2);
 });
