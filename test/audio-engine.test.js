@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hzToBinIndex, bucketBands, applyEnvelope, getOrCreateSource } from '../src/audio-engine.js';
+import { hzToBinIndex, bucketBands, applyEnvelope, getOrCreateSource, AudioEngine } from '../src/audio-engine.js';
 
 test('hzToBinIndex maps 0Hz to bin 0', () => {
   assert.equal(hzToBinIndex(0, 44100, 1024), 0);
@@ -67,4 +67,52 @@ test('getOrCreateSource creates separate sources for different keys', () => {
   getOrCreateSource(map, {}, make);
 
   assert.equal(calls, 2);
+});
+
+test('bucketBands: energy in mid range only produces mid=1, bass=0, treble=0', () => {
+  const sampleRate = 44100;
+  const fftSize = 1024;
+  const freqData = new Uint8Array(fftSize / 2);
+  // hzToBinIndex(250, ...) is bass's own (inclusive) last bin under
+  // bucketBands' non-overlap rule, so mid's first exclusive bin is one past
+  // it — start there, not at hzToBinIndex(250, ...) itself, or this energy
+  // leaks into bass.
+  const midLo = hzToBinIndex(250, sampleRate, fftSize) + 1;
+  const midHi = hzToBinIndex(4000, sampleRate, fftSize);
+  for (let i = midLo; i <= midHi; i++) freqData[i] = 255;
+  const bands = bucketBands(freqData, sampleRate, fftSize);
+  assert.equal(bands.bass, 0);
+  assert.equal(bands.mid, 1);
+  assert.equal(bands.treble, 0);
+});
+
+test('bucketBands: treble extends to the last FFT bin (Nyquist), not just 16kHz', () => {
+  const sampleRate = 44100;
+  const fftSize = 1024;
+  const freqData = new Uint8Array(fftSize / 2);
+  freqData[freqData.length - 1] = 255; // the very last bin, well above 16kHz
+  const bands = bucketBands(freqData, sampleRate, fftSize);
+  assert.ok(bands.treble > 0, `expected the last bin to count toward treble, got ${bands.treble}`);
+});
+
+test('bucketBands: full-spectrum energy covers every band exactly once (no gaps, no double-counting)', () => {
+  const sampleRate = 44100;
+  const fftSize = 1024;
+  const freqData = new Uint8Array(fftSize / 2).fill(255);
+  const bands = bucketBands(freqData, sampleRate, fftSize);
+  assert.equal(bands.bass, 1);
+  assert.equal(bands.mid, 1);
+  assert.equal(bands.treble, 1);
+});
+
+test('AudioEngine: off-browser (no window.AudioContext) degrades gracefully, does not throw', () => {
+  assert.equal(AudioEngine.isSupported, false);
+  const engine = new AudioEngine();
+  assert.doesNotThrow(() => engine.update(0.016));
+  const bands = engine.update(0.016);
+  assert.equal(bands.bass, 0);
+  assert.equal(bands.mid, 0);
+  assert.equal(bands.treble, 0);
+  assert.equal(engine.connectMediaElement({}), false);
+  assert.doesNotThrow(() => engine.resume());
 });
