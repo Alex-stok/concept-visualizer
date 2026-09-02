@@ -37,7 +37,7 @@ TEMPLATE.innerHTML = `
       color: #111; background: #f7f5f3; border-color: #f7f5f3;
     }
   </style>
-  <canvas></canvas>
+  <canvas aria-hidden="true"></canvas>
   <div class="switcher" part="switcher"></div>
 `;
 
@@ -65,6 +65,7 @@ export class AvVisualizer extends HTMLElement {
     this._mediaElement = null;
     this._raf = null;
     this._lastFrame = 0;
+    this._playListenerElements = new WeakSet();
 
     this._buildSwitcher();
     this._resizeObserver = new ResizeObserver(() => this._resizeCanvas());
@@ -79,21 +80,31 @@ export class AvVisualizer extends HTMLElement {
   disconnectedCallback() {
     this._resizeObserver.disconnect();
     this._stop();
+    this._engine.dispose();
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (oldValue === newValue) return;
     if (name === 'style-name') this.setStyle(newValue);
     if (name === 'active') (newValue === null ? this.deactivate() : this.activate());
-    if (name === 'accent') this._setAccent(newValue);
+    if (name === 'accent') this._setAccent(this.accent);
   }
+
+  static get isSupported() { return AudioEngine.isSupported; }
 
   get accent() { return this.getAttribute('accent') || '#7fd8e0'; }
 
   /** Assign the live <audio>/<video> element to analyze. */
   set mediaElement(el) {
     this._mediaElement = el;
-    if (el && AudioEngine.isSupported) this._engine.connectMediaElement(el);
+    if (el && AudioEngine.isSupported) {
+      this._engine.connectMediaElement(el);
+      if (!this._playListenerElements) this._playListenerElements = new WeakSet();
+      if (!this._playListenerElements.has(el)) {
+        this._playListenerElements.add(el);
+        el.addEventListener('play', () => this._engine.resume());
+      }
+    }
   }
   get mediaElement() { return this._mediaElement; }
 
@@ -108,17 +119,22 @@ export class AvVisualizer extends HTMLElement {
     for (const btn of this._switcher.children) {
       btn.setAttribute('aria-pressed', String(btn.dataset.style === name));
     }
+    if (this.getAttribute('style-name') !== name) {
+      this.setAttribute('style-name', name);
+    }
   }
 
   activate() {
     this._active = true;
     this._engine.resume();
     this._start();
+    if (!this.hasAttribute('active')) this.setAttribute('active', '');
   }
 
   deactivate() {
     this._active = false;
     this._stop();
+    if (this.hasAttribute('active')) this.removeAttribute('active');
   }
 
   _buildSwitcher() {
@@ -165,4 +181,6 @@ export class AvVisualizer extends HTMLElement {
   }
 }
 
-customElements.define('av-visualizer', AvVisualizer);
+if (typeof customElements !== 'undefined' && !customElements.get('av-visualizer')) {
+  customElements.define('av-visualizer', AvVisualizer);
+}

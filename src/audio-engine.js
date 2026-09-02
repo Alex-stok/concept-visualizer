@@ -78,12 +78,10 @@ export function applyEnvelope(previous, target, dt, attackTau, decayTau) {
  * element).
  */
 export function getOrCreateSource(sourceMap, key, createSource) {
-  let source = sourceMap.get(key);
-  if (!source) {
-    source = createSource();
-    sourceMap.set(key, source);
+  if (!sourceMap.has(key)) {
+    sourceMap.set(key, createSource());
   }
-  return source;
+  return sourceMap.get(key);
 }
 
 /**
@@ -141,7 +139,19 @@ export class AudioEngine {
 
   /** Resumes a suspended AudioContext — call this from a user gesture (e.g. play). */
   resume() {
-    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+  }
+
+  /** Closes the underlying AudioContext and releases all state. Call this
+   * when the component using this engine is being torn down (e.g. a custom
+   * element's disconnectedCallback) — repeated construction of AudioContexts
+   * without closing old ones hits a hard per-page cap in Chrome. */
+  dispose() {
+    if (this.ctx) this.ctx.close();
+    this.ctx = null;
+    this.analyser = null;
+    this.freqData = null;
+    this.sourceNodes = new WeakMap();
   }
 
   /** Reads the current frequency data and advances the smoothed bands. Call once per frame. */
