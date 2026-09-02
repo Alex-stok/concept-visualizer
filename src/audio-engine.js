@@ -5,7 +5,11 @@
 // layers: pure functions (testable without a browser, below) and the
 // AudioEngine class that wires them to a live AnalyserNode (Task 2).
 
-/** Frequency ranges (Hz) for each band. */
+/**
+ * Frequency ranges (Hz) for each band. BAND_RANGES must have exactly 3 entries
+ * in ascending frequency order; bucketBands assumes this structure.
+ * Note: treble upper bound is nominal; bucketBands extends treble to the last FFT bin (Nyquist).
+ */
 export const BAND_RANGES = {
   bass: [20, 250],
   mid: [250, 4000],
@@ -27,11 +31,14 @@ export function hzToBinIndex(hz, sampleRate, fftSize) {
  * Averages the frequency-domain bytes (0-255, as returned by
  * AnalyserNode#getByteFrequencyData) that fall within each band's Hz
  * range, normalized to 0..1. Returns { bass, mid, treble }.
+ *
+ * Handles overlapping BAND_RANGES boundaries by tracking each band's end,
+ * ensuring non-overlapping bin allocation (each bin counted exactly once).
  */
 export function bucketBands(freqData, sampleRate, fftSize) {
   const result = {};
   const entries = Object.entries(BAND_RANGES);
-  let prevHiBin = -1; // track where the previous band ended
+  let prevHiBin = -1; // track where the previous band ended to avoid overlap
   for (let idx = 0; idx < entries.length; idx++) {
     const [name, [lo, hi]] = entries[idx];
     const hiBin = hzToBinIndex(hi, sampleRate, fftSize);
@@ -39,7 +46,7 @@ export function bucketBands(freqData, sampleRate, fftSize) {
     let count = 0;
     // Start from where previous band ended, or from the calculated lo bin if first band
     const loBin = idx === 0 ? hzToBinIndex(lo, sampleRate, fftSize) : prevHiBin + 1;
-    // End at the calculated hi bin, or at the end of freqData for the last band
+    // End at the calculated hi bin, or at the end of freqData for the last band (treble covers to Nyquist)
     const endBin = idx < entries.length - 1 ? hiBin : freqData.length - 1;
     for (let i = loBin; i <= endBin; i++) {
       sum += freqData[i];
