@@ -2,18 +2,59 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Visualizer renderer preview</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>av-visualizer demo</title>
 <style>
   body { margin: 0; background: #111112; color: #f2f0ee; font-family: system-ui, sans-serif; }
-  #controls { display: flex; gap: 8px; padding: 12px; }
-  button { background: #2a2a2b; color: #f2f0ee; border: 1px solid #3a3a3c; padding: 8px 14px; cursor: pointer; }
-  button[aria-pressed="true"] { background: #f2f0ee; color: #111112; }
-  canvas { display: block; width: 100%; height: 372px; background: #121111; }
+  .hero {
+    position: relative; width: min(100%, 1000px); height: 372px; margin: 40px auto;
+    background: #a3968f; overflow: hidden;
+  }
+  av-visualizer { position: absolute; inset: 0; }
+  .controls {
+    position: absolute; left: 24px; bottom: 20px; display: flex; align-items: center; gap: 14px;
+  }
+  .play {
+    width: 56px; height: 56px; border-radius: 50%; background: #141414;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; border: none;
+  }
+  .play svg { fill: #fff; }
+  .mode-toggle {
+    position: absolute; right: 24px; bottom: 20px;
+    display: flex; gap: 8px; background: rgba(20,20,20,0.55); padding: 5px;
+  }
+  .mode-toggle button {
+    font: 500 12px system-ui, sans-serif; letter-spacing: 0.04em;
+    padding: 6px 12px; cursor: pointer; color: #b6b0aa; background: transparent; border: none;
+  }
+  .mode-toggle button[aria-pressed="true"] { color: #f7f5f3; background: rgba(247,245,243,0.16); }
+  .art-placeholder {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.5); font-size: 13px;
+  }
+  .notice {
+    position: absolute; top: 16px; left: 24px; right: 24px; font-size: 12px;
+    color: rgba(255,255,255,0.6);
+  }
 </style>
 </head>
 <body>
-  <div id="controls"></div>
-  <canvas id="canvas"></canvas>
+  <div class="hero" id="hero">
+    <div class="art-placeholder" id="artPlaceholder">album art</div>
+    <av-visualizer id="viz" style-name="equalizer" accent="#7fd8e0"></av-visualizer>
+    <div class="notice" id="notice" hidden>Drop a track at demo/audio/track.mp3 to hear it react.</div>
+    <div class="controls">
+      <button class="play" id="playBtn" aria-label="Play">
+        <svg id="playIcon" width="18" height="18" viewBox="0 0 18 18"><polygon points="3,1 16,9 3,17"/></svg>
+        <svg id="pauseIcon" width="18" height="18" viewBox="0 0 18 18" hidden><rect x="3" y="1" width="4" height="16"/><rect x="11" y="1" width="4" height="16"/></svg>
+      </button>
+    </div>
+    <div class="mode-toggle">
+      <button id="waveBtn" aria-pressed="true">WAVEFORM</button>
+      <button id="vizBtn" aria-pressed="false">VISUALIZER</button>
+    </div>
+  </div>
+  <audio id="audio" src="./audio/track.mp3" preload="auto"></audio>
   <script type="module" src="./main.js"></script>
 </body>
 </html>
