@@ -1,8 +1,10 @@
 // src/visualizers/equalizer.js
 //
-// Vertical bar spectrum, log-scaled across the frequency range so bass
-// isn't crushed into the first bar or two. Fed the full spectrum from
+// Vertical bar spectrum, frequency-weighted across the frequency range so
+// bass isn't crushed into the first bar or two. Fed the full spectrum from
 // AudioEngine#update() (bands.spectrum), not just bass/mid/treble.
+
+import { cssSize } from './size.js';
 
 const BAR_COUNT = 56;
 
@@ -12,14 +14,15 @@ export class EqualizerRenderer {
   }
 
   render(ctx, bands, dt) {
-    const { width, height } = ctx.canvas;
-    ctx.clearRect(0, 0, width, height);
+    const { width, height } = cssSize(ctx);
+    ctx.fillStyle = '#121111';
+    ctx.fillRect(0, 0, width, height);
     const spectrum = bands.spectrum;
     if (!spectrum || spectrum.length === 0) return;
 
     const barWidth = width / BAR_COUNT;
     for (let i = 0; i < BAR_COUNT; i++) {
-      // Log-scaled mapping: bar i pulls from an exponentially increasing
+      // Power-law mapping: bar i pulls from an exponentially increasing
       // slice of the spectrum, so low bars (bass) aren't just 1-2 bins.
       const t0 = i / BAR_COUNT;
       const t1 = (i + 1) / BAR_COUNT;

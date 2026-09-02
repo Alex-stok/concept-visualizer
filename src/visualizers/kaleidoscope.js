@@ -1,7 +1,9 @@
 // src/visualizers/kaleidoscope.js
 //
-// A radially-mirrored geometric pattern. Bass drives overall pulse/scale,
-// mid drives rotation speed, treble drives inner-layer detail/shimmer.
+// A radially-symmetric geometric pattern. Bass drives overall pulse/scale,
+// mid drives rotation speed, treble drives inner-layer spoke density.
+
+import { cssSize } from './size.js';
 
 const SYMMETRY = 8; // fold count
 
@@ -12,7 +14,7 @@ export class KaleidoscopeRenderer {
   }
 
   render(ctx, bands, dt) {
-    const { width, height } = ctx.canvas;
+    const { width, height } = cssSize(ctx);
     ctx.fillStyle = '#121111';
     ctx.fillRect(0, 0, width, height);
 

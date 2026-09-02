@@ -4,6 +4,8 @@
 // shockwave that scatters particles outward; mid drives ambient drift
 // speed/turbulence; treble adds sparkle (per-particle flicker).
 
+import { cssSize } from './size.js';
+
 const PARTICLE_COUNT = 220;
 
 function rand(seed) {
@@ -39,7 +41,7 @@ export class NebulaRenderer {
   }
 
   render(ctx, bands, dt) {
-    const { width, height } = ctx.canvas;
+    const { width, height } = cssSize(ctx);
     this._ensureParticles(width, height);
     this.t += dt;
 
