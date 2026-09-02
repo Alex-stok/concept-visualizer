@@ -6,6 +6,7 @@
 // ("Real demo integration") replaces this file's synthetic driver with the
 // real AudioEngine wired to an actual <audio> element.
 import { EqualizerRenderer } from '../src/visualizers/equalizer.js';
+import { NebulaRenderer } from '../src/visualizers/nebula.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -22,6 +23,7 @@ resizeCanvas();
 
 const renderers = {
   equalizer: new EqualizerRenderer({ accent: '#7fd8e0' }),
+  nebula: new NebulaRenderer({ accent: '#7fd8e0' }),
 };
 
 let current = 'equalizer';
