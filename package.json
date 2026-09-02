@@ -11,7 +11,8 @@
   "license": "UNLICENSED",
   "scripts": {
     "test": "node --test \"test/**/*.test.js\"",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "prepare": "node scripts/build.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
