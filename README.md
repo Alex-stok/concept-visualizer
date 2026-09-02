@@ -13,6 +13,7 @@ none) renders the page around it.
 
 <av-visualizer id="viz" style-name="equalizer" accent="#7fd8e0"></av-visualizer>
 <audio id="track" src="song.mp3"></audio>
+<button id="playButton">Play</button>
 
 <script type="module">
   const viz = document.getElementById('viz');
@@ -94,13 +95,16 @@ host wiring that up around the component).
 
 ## The 3 visual styles
 
-- **Equalizer** — a classic vertical bar spectrum (~56 bars), log-scaled
-  across the frequency range so bass isn't crushed into the first couple
-  of bars. Fast-attack/slow-decay per bar, accent-colored on strong hits.
+- **Equalizer** — a classic vertical bar spectrum (~56 bars),
+  frequency-weighted across the frequency range so bass isn't crushed into
+  the first couple of bars. Bars reflect the raw per-bin spectrum directly
+  each frame — accent-colored on strong hits — with no additional
+  smoothing beyond whatever the browser's `AnalyserNode` default
+  `smoothingTimeConstant` provides.
 - **Nebula** — a loose cloud of ~220 drifting particles. Bass fires a
   radial shockwave that scatters particles outward; mid drives ambient
   drift/turbulence; treble adds per-particle sparkle on transients.
-- **Kaleidoscope** — an 8-fold radially-mirrored geometric pattern. Bass
+- **Kaleidoscope** — an 8-fold radially-symmetric geometric pattern. Bass
   drives overall pulse/scale, mid drives rotation speed, treble drives
   inner-layer detail density.
 
@@ -112,7 +116,8 @@ Its frequency-domain data is used two ways every frame:
 
 - **Raw per-bin spectrum** → the Equalizer renderer's bars.
 - **Bucketed into 3 Hz ranges** (bass 20-250Hz, mid 250-4000Hz, treble
-  4000-16000Hz) → Nebula and Kaleidoscope's macro reactivity.
+  4000Hz-Nyquist (~22kHz at the default 44.1kHz sample rate)) → Nebula and
+  Kaleidoscope's macro reactivity.
 
 Each band is smoothed with a fast-attack/slow-decay envelope so the
 visuals don't flicker frame to frame. See `src/audio-engine.js` for the
@@ -122,9 +127,28 @@ math.
 ## Browser support
 
 Requires the Web Audio API and Custom Elements (all evergreen browsers).
-Check `AudioEngine.isSupported` (exported from `src/audio-engine.js`)
-before relying on analysis — the component simply won't animate if it's
-unavailable, it won't throw.
+Check `AvVisualizer.isSupported` before relying on analysis — the
+component simply won't animate if it's unavailable, it won't throw. (This
+is a static proxy for `AudioEngine.isSupported`; if you're importing from
+`src/` directly rather than the bundle, `AudioEngine.isSupported` — from
+`src/audio-engine.js` — works too.)
+
+This module touches `document`/`customElements` at import time and is not
+SSR-safe — import it only in client-side code (e.g. behind a dynamic
+`import()` or a client-only entry point in frameworks that pre-render on
+the server).
+
+## Cross-origin audio
+
+If the `<audio>`/`<video>` element's source is on a different origin than
+the page, set `crossorigin="anonymous"` on the element and ensure the
+server sends appropriate CORS headers (`Access-Control-Allow-Origin`).
+Without this, the browser still plays the audio but `getByteFrequencyData`
+returns all-zero data (and some browsers mute the routed output entirely)
+— the visualizer will appear frozen/silent even though playback works.
+This is a browser security restriction (the Web Audio API refuses to
+expose cross-origin sample data without explicit CORS opt-in), not
+anything this component can work around.
 
 ## Project structure
 
