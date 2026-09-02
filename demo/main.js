@@ -39,17 +39,25 @@ audio.addEventListener('play', () => {
 audio.addEventListener('pause', () => {
   playIcon.hidden = false;
   pauseIcon.hidden = true;
+  viz.deactivate();
+});
+audio.addEventListener('ended', () => {
+  playIcon.hidden = false;
+  pauseIcon.hidden = true;
+  viz.deactivate();
 });
 
 function showWaveform() {
   artPlaceholder.style.display = '';
   viz.style.display = 'none';
   eyeBtn.setAttribute('aria-pressed', 'false');
+  viz.deactivate();
 }
 function showVisualizer() {
   artPlaceholder.style.display = 'none';
   viz.style.display = '';
   eyeBtn.setAttribute('aria-pressed', 'true');
+  if (!audio.paused) viz.activate();
 }
 eyeBtn.addEventListener('click', () => {
   if (eyeBtn.getAttribute('aria-pressed') === 'true') showWaveform();
