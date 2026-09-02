@@ -149,6 +149,18 @@ playable page, not a static approximation. **Open item:** the audio
 file itself is pending — the user will drop one into the project;
 demo wiring should not assume a specific filename until then.
 
+## Documentation deliverable
+
+A top-level `README.md`, written for an external engineer evaluating
+or integrating the component (not an internal dev-notes file): what
+it is, the architecture summary, the full `<av-visualizer>` API
+(attributes/properties/methods), the integration contract (media
+element vs. audio node, why each is safe regardless of the host's own
+audio graph), the 3 visual styles, browser/Web Audio support notes,
+and how to run the demo and tests. This is the artifact a SoundCloud
+engineer would actually read to evaluate the component — it ships
+alongside the code, not buried in `docs/superpowers/`.
+
 ## Testing
 
 Unit tests (lightweight runner, e.g. `node:test` or `vitest`) for the
