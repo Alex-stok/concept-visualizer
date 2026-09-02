@@ -17,9 +17,11 @@ const eyeBtn = document.getElementById('eyeBtn');
 
 viz.mediaElement = audio;
 
-audio.addEventListener('error', () => {
-  notice.hidden = false;
-});
+function checkAudioError() {
+  if (audio.error) notice.hidden = false;
+}
+checkAudioError(); // covers the case where the error already fired before this script ran
+audio.addEventListener('error', checkAudioError); // covers a later error (e.g. src changed dynamically)
 
 playBtn.addEventListener('click', () => {
   if (audio.paused) {
