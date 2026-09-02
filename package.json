@@ -4,9 +4,16 @@
   "description": "Audio-reactive visualizer component for track players — real Web Audio analysis driving 3 canvas-based visual styles.",
   "type": "module",
   "main": "dist/av-visualizer.js",
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "license": "UNLICENSED",
   "scripts": {
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test \"test/**/*.test.js\"",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
