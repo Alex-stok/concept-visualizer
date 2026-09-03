@@ -11,7 +11,7 @@
   "license": "UNLICENSED",
   "author": "Alex-stok",
   "scripts": {
-    "test": "node --test \"test/**/*.test.js\"",
+    "test": "node --test",
     "build": "node scripts/build.mjs",
     "prepare": "node scripts/build.mjs"
   },
