@@ -8,7 +8,7 @@
     "dist",
     "src"
   ],
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": "Alex-stok",
   "scripts": {
     "test": "node --test",

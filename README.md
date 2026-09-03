@@ -221,4 +221,4 @@ and build instructions.
 
 ## License
 
-Proprietary — all rights reserved. See [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE).
