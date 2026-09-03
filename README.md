@@ -10,8 +10,7 @@ The demo page (`demo/index.html`) borrows a familiar dark player layout as
 a design testbed for the component, and one of the three visual styles
 (Cloud) is a visual homage to a recognizable player-brand mark. This
 project isn't affiliated with, endorsed by, or trying to replicate any
-particular product — it's a concept piece exploring the idea, not a
-sellable component or a clone of anything.
+particular product.
 
 ## Quick start
 
@@ -199,8 +198,7 @@ react to real playback.
 ## Testing scope
 
 The audio-engine's pure math (Hz→bin bucketing, band averaging, envelope
-smoothing, the source-node reuse guard) is unit tested — that's the part
-that can silently be wrong. The three renderers are inherently visual and
+smoothing, the source-node reuse guard) is unit tested. The three renderers are inherently visual and
 are verified by eye on the demo page rather than pixel-tested.
 
 ## Contributing
