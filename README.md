@@ -6,11 +6,19 @@ zero-dependency Web Component (`<av-visualizer>`) — three distinct visual
 styles, each driven by genuine bass/mid/treble analysis of the signal via
 the Web Audio API, rather than simulated or fake-beat levels.
 
-The demo page (`demo/index.html`) borrows a familiar dark player layout as
-a design testbed for the component, and one of the three visual styles
-(Cloud) is a visual homage to a recognizable player-brand mark. This
-project isn't affiliated with, endorsed by, or trying to replicate any
-particular product.
+The demo page (`demo/index.html`) borrows the look of Soundcloud's current
+web interface. This project is intended as a concept of what it could look like
+to have a visualizer integrated into the hero section of the currently playing
+track screen. This project isn't affiliated with, endorsed by, or trying 
+to replicate Soundclud in any way. I am an avid Soundcloud User and would 
+love to see this added to their web UI.
+
+The main addition to the existing layout would be a button with an eye on it
+that sits next to the 3 dots button in the hero section of the page.
+This button transitions the hero area into the visualizer which currently has 3 
+basic modes (equalizer, nebula, and cloud). There is a fullscreen button in 
+the top right corner.All visual elements are set to only appear on mouse hover.
+
 
 ![The Nebula visual style running in the demo, with the hero's comment ticks, like/comment row, and style switcher all visible](screenshots/2.png)
 
