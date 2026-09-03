@@ -5,80 +5,303 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>av-visualizer demo</title>
 <style>
-  body { margin: 0; background: #111112; color: #f2f0ee; font-family: system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #111112; color: #f2f0ee; font-family: system-ui, sans-serif; padding-bottom: 46px; }
+  /* `hidden` alone doesn't reliably apply display:none to inline <svg>
+     (used here for the play/pause and enter/exit-fullscreen icon swaps). */
+  svg[hidden] { display: none !important; }
+
+  /* --- top nav bar --- */
+  .nav {
+    display: flex; align-items: center; gap: 28px; height: 52px; padding: 0 24px;
+    background: #1a1a1b; border-bottom: 1px solid #262627;
+  }
+  .nav-logo { display: flex; align-items: flex-end; gap: 2px; height: 16px; }
+  .nav-logo span { width: 3px; background: #f2f0ee; display: block; }
+  .nav-links { display: flex; gap: 22px; font-size: 14px; color: #b8b4b0; }
+  .nav-search {
+    flex: 1; max-width: 340px; height: 30px; background: #2a2a2b; border: 1px solid #38383a;
+    display: flex; align-items: center; padding: 0 12px; font-size: 13px; color: #7a7772;
+  }
+  .nav-spacer { flex: 1; }
+  .nav-right { display: flex; align-items: center; gap: 18px; font-size: 13px; color: #b8b4b0; }
+  .nav-avatar { width: 26px; height: 26px; border-radius: 50%; background: #3d3a37; }
+
+  .page { width: min(1280px, 100%); margin: 0 auto; }
+
+  /* --- hero --- */
   .hero {
-    position: relative; width: min(100%, 1000px); height: 372px; margin: 40px auto 16px;
-    background: #a3968f; overflow: hidden;
+    /* Shared by the hero-details grid and .hero-controls below, so the
+       bottom bar's right edge always lines up with the art panel's left
+       edge no matter how wide the art column is. */
+    --art-col-w: 320px;
+    position: relative; margin: 20px 24px 0; background: #17181a; height: 372px;
+    overflow: hidden; border-radius: 12px;
   }
-  av-visualizer { position: absolute; inset: 0; }
-  .controls {
-    position: absolute; left: 24px; bottom: 20px; display: flex; align-items: center; gap: 14px;
-  }
-  .play {
-    width: 56px; height: 56px; border-radius: 50%; background: #141414;
-    display: flex; align-items: center; justify-content: center; cursor: pointer; border: none;
-  }
-  .play svg { fill: #fff; }
-  .action-row {
-    width: min(100%, 1000px); margin: 0 auto 40px;
-    display: flex; align-items: center; gap: 4px;
-  }
-  .icon-btn {
-    width: 36px; height: 36px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: transparent; border: none; cursor: pointer; color: #b6b0aa;
-  }
-  .icon-btn:hover { background: rgba(247,245,243,0.08); color: #f2f0ee; }
-  .icon-btn svg { width: 20px; height: 20px; }
-  #eyeBtn[aria-pressed="true"] { color: #7fd8e0; }
-  .art-placeholder {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: rgba(255,255,255,0.5); font-size: 13px;
-  }
+  .hero.viz-active { background: #121111; }
+  .hero:fullscreen { margin: 0; border-radius: 0; height: 100vh; }
+
+  av-visualizer { position: absolute; inset: 0; display: none; }
+  .hero.viz-active av-visualizer { display: block; }
+
+  /* --- fullscreen toggle, upper-right corner of the visualizer screen --- */
+  /* Not part of the DOM's visible layout outside visualizer mode; inside
+     it, fades with hover like the other controls below. */
+  .fullscreen-btn-wrap { position: absolute; right: 12px; top: 12px; z-index: 4; display: none; opacity: 1; transition: opacity 250ms ease; }
+  .hero.viz-active .fullscreen-btn-wrap { display: block; }
+  .hero.viz-active:not(.revealed) .fullscreen-btn-wrap { opacity: 0; pointer-events: none; }
+
+  /* Progress bar + its comment-position ticks: same treatment — visualizer-
+     mode only, fading with hover rather than staying permanently on. */
+  .hero-viz-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(247,245,243,0.16); display: none; opacity: 1; transition: opacity 250ms ease; }
+  .hero.viz-active .hero-viz-progress { display: block; }
+  .hero.viz-active:not(.revealed) .hero-viz-progress { opacity: 0; pointer-events: none; }
+  .hero-viz-progress-fill { position: absolute; left: 0; top: 0; height: 3px; width: 0%; background: #f7f5f3; }
+  .hero-viz-markers { position: absolute; inset: 0; pointer-events: none; display: none; opacity: 1; transition: opacity 250ms ease; }
+  .hero.viz-active .hero-viz-markers { display: block; }
+  .hero.viz-active:not(.revealed) .hero-viz-markers { opacity: 0; }
+  .hero-viz-markers .marker { position: absolute; bottom: 3px; width: 3px; height: 8px; }
+
   .notice {
     position: absolute; top: 16px; left: 24px; right: 24px; font-size: 12px;
-    color: rgba(255,255,255,0.6);
+    color: rgba(255,255,255,0.6); z-index: 5;
   }
+
+  .hero-details {
+    /* Bottom padding reserves .hero-controls' footprint below it, so the
+       art panel (which stretches to fill this grid row) bottoms out flush
+       with the controls row. */
+    position: absolute; inset: 0; padding: 22px 32px 58px;
+    display: grid; grid-template-columns: 1fr var(--art-col-w); gap: 32px;
+  }
+  /* Fully hidden (not just faded) while the visualizer is showing, so
+     nothing here can intercept clicks meant for the controls below. */
+  .hero.viz-active .hero-details { display: none; }
+
+  .hero-left { display: flex; flex-direction: column; min-width: 0; gap: 22px; }
+  .hero-top { display: flex; gap: 16px; align-items: flex-start; }
+  /* Reserves the play button's footprint so the title doesn't shift — the
+     real button lives outside .hero-details (see .play-btn-wrap) so it
+     stays visible in visualizer mode too. */
+  .play-btn-spacer { width: 64px; flex: none; }
+
+  .play-btn-wrap { position: absolute; left: 28px; top: 22px; z-index: 4; opacity: 1; transition: opacity 250ms ease; }
+  .hero.viz-active:not(.revealed) .play-btn-wrap { opacity: 0; pointer-events: none; }
+
+  .play-btn {
+    width: 64px; height: 64px; border-radius: 50%; background: transparent;
+    display: flex; align-items: center; justify-content: center; flex: none;
+    cursor: pointer; border: 2px solid rgba(255,255,255,0.85); padding: 0;
+  }
+  .play-btn svg { fill: #fff; }
+
+  .hero-title-block { min-width: 0; padding-top: 4px; }
+  .track-title { color: #fff; font-size: 22px; font-weight: 700; line-height: 1.3; }
+  .track-subtitle { margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 13px; color: #9a9793; }
+  .hd-badge { border: 1px solid rgba(255,255,255,0.32); border-radius: 3px; padding: 1px 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; color: #cfcbc6; }
+
+  .waveform-wrap { display: block; }
+  .hero.viz-active .waveform-wrap { display: none; }
+
+  .waveform-track { position: relative; height: 88px; }
+  .waveform-bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
+  .waveform-bars .bar { flex: 1; background: rgba(255,255,255,0.28); }
+  .waveform-played { position: absolute; inset: 0 auto 0 0; width: 0%; overflow: hidden; }
+  .waveform-played-inner { height: 100%; display: flex; align-items: flex-end; gap: 1px; }
+  .waveform-played-inner .bar { flex: 1; background: #fff; }
+  .waveform-time-current { position: absolute; right: 0; top: -20px; font-family: ui-monospace, "IBM Plex Mono", monospace; font-size: 11px; color: #cfcbc6; }
+
+  .waveform-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  #waveformMarkers { display: flex; align-items: center; flex: 1; min-width: 0; overflow: hidden; }
+  .comment-marker { width: 20px; height: 20px; border-radius: 50%; border: 1px solid #17181a; flex: none; margin-left: -5px; }
+  .comment-marker:first-child { margin-left: 0; }
+  .waveform-time-total { flex: none; font-family: ui-monospace, "IBM Plex Mono", monospace; font-size: 11px; color: #726f6b; }
+
+  /* Stretches to fill the grid row's height, so it bottoms out flush with
+     .hero-controls instead of leaving dead space below it. */
+  .art-col { display: flex; flex-direction: column; min-width: 0; }
+  .art-panel { width: 100%; flex: 1; background: #26262a; border-radius: 6px; position: relative; overflow: hidden; }
+  .art-panel::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 8px, rgba(255,255,255,0) 8px 16px); }
+  .art-panel-label { position: absolute; left: 12px; bottom: 12px; font-family: ui-monospace, "IBM Plex Mono", monospace; font-size: 11px; color: rgba(255,255,255,0.5); }
+
+  /* --- hero controls: like/comment/icon bar + eye toggle --- */
+  /* Right edge stops at the art panel's left edge (--art-col-w + the
+     grid's 32px gap), so this row shares its start and end points with the
+     waveform above it instead of running underneath the art. Same
+     position in both modes — it must not shift when the hero switches. */
+  .hero-controls {
+    position: absolute; left: 32px; right: calc(32px + var(--art-col-w) + 32px); bottom: 14px;
+    display: flex; align-items: center; gap: 14px;
+    z-index: 4; opacity: 1; transition: opacity 250ms ease;
+  }
+  .hero.viz-active:not(.revealed) .hero-controls { opacity: 0; pointer-events: none; }
+  /* The component's own EQUALIZER/NEBULA/CLOUD switcher lives in its
+     shadow DOM, exposed via `part="switcher"` so a host page can style it. */
+  av-visualizer::part(switcher) { opacity: 1; transition: opacity 250ms ease; }
+  .hero.viz-active:not(.revealed) av-visualizer::part(switcher) { opacity: 0; pointer-events: none; }
+
+  .hero-like { display: flex; align-items: center; gap: 6px; flex: none; }
+  .like-count { font-size: 13px; font-weight: 600; color: #e6e3e0; }
+
+  .comment-bar {
+    display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+    border: 1px solid rgba(255,255,255,0.16); border-radius: 999px; padding: 2px;
+  }
+  .comment-avatar { width: 26px; height: 26px; border-radius: 50%; background: #3d3a37; flex: none; margin-left: 2px; }
+  .comment-input { flex: 1; min-width: 0; font-size: 12px; color: #726f6b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .icon-row { display: flex; align-items: center; gap: 2px; flex: none; }
+  .icon-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: #cfcbc6; padding: 0; flex: none; }
+  .icon-btn:hover { background: rgba(247,245,243,0.08); color: #f2f0ee; }
+  .icon-btn svg { width: 19px; height: 19px; }
+  #eyeBtn[aria-pressed="true"] { color: #7fd8e0; }
+
+  /* --- fixed bottom mini-player --- */
+  .mini-player { position: fixed; left: 0; right: 0; bottom: 0; height: 46px; background: #1c1c1d; border-top: 1px solid #2c2c2e; display: flex; align-items: center; gap: 16px; padding: 0 20px; z-index: 10; }
+  .mini-transport { display: flex; align-items: center; gap: 14px; color: #d8d5d2; font-size: 13px; }
+  .mini-play-btn { width: 26px; height: 26px; border-radius: 50%; background: #f2f0ee; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; padding: 0; }
+  .mini-play-btn svg { fill: #1b1b1b; }
+  .mini-time { font-family: ui-monospace, "IBM Plex Mono", monospace; font-size: 11px; color: #9b9793; }
+  .mini-track-bar { flex: 1; height: 3px; background: #333335; position: relative; }
+  .mini-track-fill { position: absolute; left: 0; top: 0; height: 3px; width: 0%; background: #cfcbc6; }
+  .mini-meta { display: flex; align-items: center; gap: 10px; }
+  .mini-thumb { width: 28px; height: 28px; background: #3d3a37; flex: none; }
+  .mini-meta-text { font-size: 12px; color: #b8b4b0; line-height: 1.3; }
+  .mini-meta-text .artist { color: #7a7772; }
 </style>
 </head>
 <body>
-  <div class="hero" id="hero">
-    <div class="art-placeholder" id="artPlaceholder">album art</div>
-    <av-visualizer id="viz" style-name="equalizer" accent="#7fd8e0"></av-visualizer>
-    <div class="notice" id="notice" hidden>Drop a track at demo/audio/track.mp3 to hear it react.</div>
-    <div class="controls">
-      <button class="play" id="playBtn" aria-label="Play">
-        <svg id="playIcon" width="18" height="18" viewBox="0 0 18 18"><polygon points="3,1 16,9 3,17"/></svg>
-        <svg id="pauseIcon" width="18" height="18" viewBox="0 0 18 18" hidden><rect x="3" y="1" width="4" height="16"/><rect x="11" y="1" width="4" height="16"/></svg>
-      </button>
+  <div class="nav">
+    <div class="nav-logo">
+      <span style="height:7px"></span><span style="height:13px"></span><span style="height:16px"></span><span style="height:10px"></span><span style="height:5px"></span>
+    </div>
+    <div class="nav-links"><span>Home</span><span>Feed</span><span>Library</span></div>
+    <div class="nav-search">Search</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-right"><span>Upload</span><div class="nav-avatar"></div></div>
+  </div>
+
+  <div class="page">
+    <div class="hero" id="hero">
+      <av-visualizer id="viz" style-name="equalizer" accent="#7fd8e0"></av-visualizer>
+
+      <div class="hero-viz-progress">
+        <div class="hero-viz-progress-fill" id="heroVizProgressFill"></div>
+      </div>
+      <div class="hero-viz-markers" id="heroVizMarkers"></div>
+
+      <div class="notice" id="notice" hidden>Drop a track at demo/audio/track.mp3 to hear it react.</div>
+
+      <div class="hero-details" id="heroDetails">
+        <div class="hero-left">
+          <div class="hero-top">
+            <div class="play-btn-spacer" aria-hidden="true"></div>
+            <div class="hero-title-block">
+              <div class="track-title">Nightline Sessions: Halvorsen &amp; Ada — Inside the Signal (Kite Remix)</div>
+              <div class="track-subtitle">
+                <span>Kite</span> · <span>Deep House</span> · <span>2 years ago</span> ·
+                <span class="hd-badge">HD</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="waveform-wrap">
+            <div class="waveform-track">
+              <div class="waveform-bars" id="waveformBars"></div>
+              <div class="waveform-played" id="waveformPlayed">
+                <div class="waveform-played-inner" id="waveformPlayedInner"></div>
+              </div>
+              <div class="waveform-time-current" id="waveformTimeCurrent">0:00</div>
+            </div>
+            <div class="waveform-meta">
+              <div id="waveformMarkers"></div>
+              <div class="waveform-time-total" id="waveformTimeTotal">0:00</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="art-col">
+          <div class="art-panel">
+            <div class="art-panel-label">album art · Kite</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="play-btn-wrap">
+        <button class="play-btn" id="playBtn" aria-label="Play">
+          <svg id="playIcon" width="18" height="18" viewBox="0 0 18 18"><polygon points="3,1 16,9 3,17"/></svg>
+          <svg id="pauseIcon" width="18" height="18" viewBox="0 0 18 18" hidden><rect x="3" y="1" width="4" height="16"/><rect x="11" y="1" width="4" height="16"/></svg>
+        </button>
+      </div>
+
+      <div class="fullscreen-btn-wrap">
+        <button class="icon-btn" id="fullscreenBtn" aria-label="Toggle fullscreen" aria-pressed="false">
+          <svg id="fullscreenEnterIcon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/></svg>
+          <svg id="fullscreenExitIcon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M7 3v4H3M13 3v4h4M17 13h-4v4M3 13h4v4"/></svg>
+        </button>
+      </div>
+
+      <div class="hero-controls">
+        <div class="hero-like">
+          <button class="icon-btn" aria-label="Like">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 17s-6.5-4-6.5-8.5A3.5 3.5 0 0 1 10 6a3.5 3.5 0 0 1 6.5 2.5C16.5 13 10 17 10 17Z"/></svg>
+          </button>
+          <span class="like-count">10.08K</span>
+        </div>
+
+        <div class="comment-bar">
+          <div class="comment-avatar"></div>
+          <div class="comment-input">Write a comment</div>
+          <button class="icon-btn" aria-label="Send comment">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 10 17 3l-5 14-3-6-6-1Z"/></svg>
+          </button>
+        </div>
+
+        <div class="icon-row">
+          <button class="icon-btn" aria-label="Share">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v9M10 2 6 6M10 2l4 4M4 11v5a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-5"/></svg>
+          </button>
+          <button class="icon-btn" aria-label="Copy link">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 12a3 3 0 0 1 0-4l2-2a3 3 0 0 1 4 4l-1 1"/><path d="M12 8a3 3 0 0 1 0 4l-2 2a3 3 0 0 1-4-4l1-1"/></svg>
+          </button>
+          <button class="icon-btn" aria-label="Repost">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a5 5 0 0 1 5-5h6M15 3l-2.5 2.5M15 3l-2.5-2.5"/><path d="M16 12a5 5 0 0 1-5 5H5M5 17l2.5-2.5M5 17l2.5 2.5"/></svg>
+          </button>
+          <button class="icon-btn" aria-label="Add to playlist">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>
+          </button>
+          <button class="icon-btn" aria-label="Buy">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h2l1.6 9.6a1.5 1.5 0 0 0 1.48 1.4h6.24a1.5 1.5 0 0 0 1.48-1.24L16 6H4.6"/><circle cx="8" cy="17" r="1" fill="currentColor" stroke="none"/><circle cx="14" cy="17" r="1" fill="currentColor" stroke="none"/></svg>
+          </button>
+          <button class="icon-btn" id="eyeBtn" aria-label="Toggle visualizer" aria-pressed="false">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z"/><circle cx="10" cy="10" r="2.2" fill="currentColor" stroke="none"/></svg>
+          </button>
+          <button class="icon-btn" aria-label="More">
+            <svg viewBox="0 0 20 20" fill="currentColor"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="action-row">
-    <button class="icon-btn" aria-label="Like">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 17s-6.5-4-6.5-8.5A3.5 3.5 0 0 1 10 6a3.5 3.5 0 0 1 6.5 2.5C16.5 13 10 17 10 17Z"/></svg>
-    </button>
-    <button class="icon-btn" aria-label="Share">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v9M10 2 6 6M10 2l4 4M4 11v5a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-5"/></svg>
-    </button>
-    <button class="icon-btn" aria-label="Copy link">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 12a3 3 0 0 1 0-4l2-2a3 3 0 0 1 4 4l-1 1"/><path d="M12 8a3 3 0 0 1 0 4l-2 2a3 3 0 0 1-4-4l1-1"/></svg>
-    </button>
-    <button class="icon-btn" aria-label="Repost">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a5 5 0 0 1 5-5h6M15 3l-2.5 2.5M15 3l-2.5-2.5"/><path d="M16 12a5 5 0 0 1-5 5H5M5 17l2.5-2.5M5 17l2.5 2.5"/></svg>
-    </button>
-    <button class="icon-btn" aria-label="Add to playlist">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>
-    </button>
-    <button class="icon-btn" aria-label="Add to cart">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l1.5 9h9L18 7H6"/><circle cx="8.5" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg>
-    </button>
-    <button class="icon-btn" id="eyeBtn" aria-label="Toggle visualizer" aria-pressed="false">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z"/><circle cx="10" cy="10" r="2.2" fill="currentColor" stroke="none"/></svg>
-    </button>
-    <button class="icon-btn" aria-label="More">
-      <svg viewBox="0 0 20 20" fill="currentColor"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg>
-    </button>
+
+  <div class="mini-player">
+    <div class="mini-transport">
+      <span>◀◀</span>
+      <button class="mini-play-btn" id="miniPlayBtn" aria-label="Play">
+        <svg id="miniPlayIcon" width="10" height="10" viewBox="0 0 10 10"><polygon points="1,0 9,5 1,10"/></svg>
+        <svg id="miniPauseIcon" width="10" height="10" viewBox="0 0 10 10" hidden><rect x="1" y="0" width="3" height="10"/><rect x="6" y="0" width="3" height="10"/></svg>
+      </button>
+      <span>▶▶</span>
+    </div>
+    <div class="mini-time" id="miniTimeCurrent">0:00</div>
+    <div class="mini-track-bar"><div class="mini-track-fill" id="miniTrackFill"></div></div>
+    <div class="mini-time" id="miniTimeTotal">0:00</div>
+    <div class="mini-meta">
+      <div class="mini-thumb"></div>
+      <div class="mini-meta-text">Kite<br /><span class="artist">Inside the Signal</span></div>
+    </div>
   </div>
+
   <audio id="audio" src="./audio/track.mp3" preload="auto"></audio>
   <script type="module" src="./main.js"></script>
 </body>

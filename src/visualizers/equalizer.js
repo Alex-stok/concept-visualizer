@@ -1,12 +1,25 @@
 // src/visualizers/equalizer.js
 //
-// Vertical bar spectrum, frequency-weighted across the frequency range so
-// bass isn't crushed into the first bar or two. Fed the full spectrum from
-// AudioEngine#update() (bands.spectrum), not just bass/mid/treble.
+// Vertical bar spectrum. Fed the full spectrum from AudioEngine#update()
+// (bands.spectrum), not just bass/mid/treble.
+//
+// Two things keep this filling the canvas properly at any size:
+// - Bar count scales with the canvas width (about one bar per
+//   BAR_TARGET_WIDTH px) instead of a fixed count, so a wide canvas (e.g.
+//   fullscreen) gets more, narrower bars — finer pitch resolution — rather
+//   than the same handful of bars stretched thin.
+// - Each bar's slice of the spectrum is chosen on a log scale (equal
+//   frequency *ratio* per bar, like an octave band), not a fixed power
+//   law. Raw FFT bins are linear in Hz, so bass lives in only the first
+//   handful of bins — a log mapping is what spreads bass/mid/treble out
+//   into a evenly segmented read instead of bunching most of the visible
+//   detail into the treble end.
 
 import { cssSize } from './size.js';
 
-const BAR_COUNT = 56;
+const BAR_TARGET_WIDTH = 12; // px per bar, roughly — sets how many bars a given width gets
+const MIN_BAR_COUNT = 32;
+const MIN_BIN = 1; // skip bin 0 (DC) — a log scale needs a nonzero floor
 
 export class EqualizerRenderer {
   constructor({ accent = '#7fd8e0' } = {}) {
@@ -18,19 +31,27 @@ export class EqualizerRenderer {
     ctx.fillStyle = '#121111';
     ctx.fillRect(0, 0, width, height);
     const spectrum = bands.spectrum;
-    if (!spectrum || spectrum.length === 0) return;
+    if (!spectrum || spectrum.length < 2) return;
 
-    const barWidth = width / BAR_COUNT;
-    for (let i = 0; i < BAR_COUNT; i++) {
-      // Power-law mapping: bar i pulls from an exponentially increasing
-      // slice of the spectrum, so low bars (bass) aren't just 1-2 bins.
-      const t0 = i / BAR_COUNT;
-      const t1 = (i + 1) / BAR_COUNT;
-      const lo = Math.floor(Math.pow(t0, 2) * spectrum.length);
-      const hi = Math.max(lo + 1, Math.floor(Math.pow(t1, 2) * spectrum.length));
+    const barCount = Math.max(MIN_BAR_COUNT, Math.round(width / BAR_TARGET_WIDTH));
+    const barWidth = width / barCount;
+    const maxBin = spectrum.length - 1;
+    const logMin = Math.log(MIN_BIN);
+    const logMax = Math.log(maxBin);
+
+    for (let i = 0; i < barCount; i++) {
+      // Log-scale mapping: bar i pulls from an equal-ratio (not equal-size)
+      // slice of the spectrum, so low bars (bass) get their own fine bins
+      // instead of being crushed into the first one or two, while treble
+      // — which is naturally many bins wide in linear FFT space — still
+      // reads as a smooth progression rather than one giant averaged blob.
+      const t0 = i / barCount;
+      const t1 = (i + 1) / barCount;
+      const lo = Math.floor(Math.exp(logMin + (logMax - logMin) * t0));
+      const hi = Math.max(lo + 1, Math.floor(Math.exp(logMin + (logMax - logMin) * t1)));
       let sum = 0;
       let count = 0;
-      for (let b = lo; b < hi && b < spectrum.length; b++) { sum += spectrum[b]; count++; }
+      for (let b = lo; b < hi && b <= maxBin; b++) { sum += spectrum[b]; count++; }
       const value = count > 0 ? sum / count / 255 : 0;
 
       const barHeight = value * height * 0.9;

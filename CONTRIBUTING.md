@@ -1,4 +1,4 @@
-# Contributing to av-visualizer
+# Contributing to concept-visualizer
 
 ## Development setup
 

@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `<av-visualizer>` custom element: a framework-agnostic, zero-dependency
   Web Component rendering 3 audio-reactive canvas visualizer styles
-  (Equalizer, Nebula, Kaleidoscope) driven by real Web Audio API analysis
+  (Equalizer, Nebula, Cloud) driven by real Web Audio API analysis
   of live playback.
 - `src/audio-engine.js`: pure Hz→bin bucketing, band averaging, and
   attack/decay envelope-smoothing math, plus the `AudioEngine` class
@@ -20,9 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   a `size.js` helper (`cssSize`) ensuring all three read CSS-pixel
   dimensions so layout is correct on HiDPI displays.
 - `demo/`: a full worked integration example — real `<audio>` playback,
-  a SoundCloud-style icon action row, and an eye-icon visualizer toggle
-  (the WAVEFORM/VISUALIZER-equivalent chrome, owned by the host page, not
-  the component).
+  a track-player hero (waveform, like/comment/share row, fullscreen
+  toggle), and an eye-icon visualizer toggle (the WAVEFORM/VISUALIZER-
+  equivalent chrome, owned by the host page, not the component).
 - `scripts/build.mjs`: esbuild packaging producing both an ESM bundle
   (`dist/av-visualizer.js`) and an IIFE bundle
   (`dist/av-visualizer.iife.js`, global `AvVisualizer`) for drop-in

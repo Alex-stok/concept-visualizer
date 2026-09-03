@@ -14,9 +14,9 @@
 import { AudioEngine } from './audio-engine.js';
 import { EqualizerRenderer } from './visualizers/equalizer.js';
 import { NebulaRenderer } from './visualizers/nebula.js';
-import { KaleidoscopeRenderer } from './visualizers/kaleidoscope.js';
+import { CloudRenderer } from './visualizers/cloud.js';
 
-const STYLE_NAMES = ['equalizer', 'nebula', 'kaleidoscope'];
+const STYLE_NAMES = ['equalizer', 'nebula', 'cloud'];
 
 const TEMPLATE = document.createElement('template');
 TEMPLATE.innerHTML = `
@@ -56,7 +56,7 @@ export class AvVisualizer extends HTMLElement {
     this._renderers = {
       equalizer: new EqualizerRenderer({ accent: this.accent }),
       nebula: new NebulaRenderer({ accent: this.accent }),
-      kaleidoscope: new KaleidoscopeRenderer({ accent: this.accent }),
+      cloud: new CloudRenderer({ accent: this.accent }),
     };
     this._currentStyle = STYLE_NAMES.includes(this.getAttribute('style-name'))
       ? this.getAttribute('style-name')
@@ -115,6 +115,7 @@ export class AvVisualizer extends HTMLElement {
 
   setStyle(name) {
     if (!STYLE_NAMES.includes(name)) return;
+    const changed = name !== this._currentStyle;
     this._currentStyle = name;
     for (const btn of this._switcher.children) {
       btn.setAttribute('aria-pressed', String(btn.dataset.style === name));
@@ -122,6 +123,13 @@ export class AvVisualizer extends HTMLElement {
     if (this.getAttribute('style-name') !== name) {
       this.setAttribute('style-name', name);
     }
+    // Some renderers (nebula) paint via a translucent trailing fade,
+    // assuming every prior frame was their own — not true for the first
+    // frame after a style switch, so clear here to avoid a leftover ghost.
+    if (changed) this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+    // Paint one frame immediately so a style switch is visible even while
+    // the render loop isn't running (e.g. audio paused).
+    if (!this._raf) this._renderFrame(0);
   }
 
   activate() {
@@ -162,14 +170,18 @@ export class AvVisualizer extends HTMLElement {
     this._ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  _renderFrame(dt) {
+    const bands = this._engine.update(dt);
+    this._renderers[this._currentStyle].render(this._ctx, bands, dt);
+  }
+
   _start() {
     if (this._raf) return;
     this._lastFrame = performance.now();
     const loop = (now) => {
       const dt = Math.min(0.05, (now - this._lastFrame) / 1000);
       this._lastFrame = now;
-      const bands = this._engine.update(dt);
-      this._renderers[this._currentStyle].render(this._ctx, bands, dt);
+      this._renderFrame(dt);
       this._raf = requestAnimationFrame(loop);
     };
     this._raf = requestAnimationFrame(loop);

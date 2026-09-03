@@ -1,10 +1,17 @@
-# av-visualizer
+# concept-visualizer
 
-A framework-agnostic, zero-dependency Web Component that turns real audio
-playback into a live, audio-reactive visualizer — three distinct styles,
-each driven by genuine bass/mid/treble analysis of the signal via the Web
-Audio API. Drop it into any player UI; it doesn't care what framework (or
-none) renders the page around it.
+A personal exploration of what an audio-reactive visualizer could look
+like inside a track-player UI, built as a framework-agnostic,
+zero-dependency Web Component (`<av-visualizer>`) — three distinct visual
+styles, each driven by genuine bass/mid/treble analysis of the signal via
+the Web Audio API, rather than simulated or fake-beat levels.
+
+The demo page (`demo/index.html`) borrows a familiar dark player layout as
+a design testbed for the component, and one of the three visual styles
+(Cloud) is a visual homage to a recognizable player-brand mark. This
+project isn't affiliated with, endorsed by, or trying to replicate any
+particular product — it's a concept piece exploring the idea, not a
+sellable component or a clone of anything.
 
 ## Quick start
 
@@ -59,7 +66,7 @@ it works.
 
 | Attribute | Values | Description |
 |---|---|---|
-| `style-name` | `equalizer` \| `nebula` \| `kaleidoscope` | Active visual style. |
+| `style-name` | `equalizer` \| `nebula` \| `cloud` | Active visual style. |
 | `active` | boolean (presence) | Whether the render loop is running. |
 | `accent` | CSS color | Accent color used by all three renderers. |
 
@@ -81,7 +88,7 @@ it works.
 ### Methods
 
 - `.setStyle(name)` — switch the active renderer (`'equalizer'` |
-  `'nebula'` | `'kaleidoscope'`).
+  `'nebula'` | `'cloud'`).
 - `.activate()` — resumes the underlying `AudioContext` (call from a user
   gesture, per browser autoplay policy) and starts the render loop.
 - `.deactivate()` — stops the render loop.
@@ -95,18 +102,25 @@ host wiring that up around the component).
 
 ## The 3 visual styles
 
-- **Equalizer** — a classic vertical bar spectrum (~56 bars),
-  frequency-weighted across the frequency range so bass isn't crushed into
-  the first couple of bars. Bars reflect the raw per-bin spectrum directly
-  each frame — accent-colored on strong hits — with no additional
-  smoothing beyond whatever the browser's `AnalyserNode` default
-  `smoothingTimeConstant` provides.
-- **Nebula** — a loose cloud of ~220 drifting particles. Bass fires a
-  radial shockwave that scatters particles outward; mid drives ambient
-  drift/turbulence; treble adds per-particle sparkle on transients.
-- **Kaleidoscope** — an 8-fold radially-symmetric geometric pattern. Bass
-  drives overall pulse/scale, mid drives rotation speed, treble drives
-  inner-layer detail density.
+- **Equalizer** — a vertical bar spectrum. Bar count scales with the
+  canvas width (about one bar per 12px) so it fills the available space at
+  any size instead of a fixed count stretched thin. Each bar's slice of
+  the spectrum is chosen on a log scale — an equal frequency *ratio* per
+  bar rather than an equal bin count — so bass, mid, and treble read as an
+  evenly segmented spread instead of bass being crushed into one or two
+  bars while treble blurs into an averaged blob.
+- **Nebula** — a spiral-armed particle field with real depth: each
+  particle has its own z, and the camera moves through that volume via
+  perspective projection, producing genuine parallax. Bass triggers a
+  brief depth "flyover" toward one particle; mid drives spin and hue-cycle
+  speed; treble adds per-particle sparkle plus short-range constellation
+  lines between particles that are close together on screen.
+- **Cloud** — a shape inspired by a familiar player-brand mark: a row of
+  vertical bars blending into a rounded body, each bar's height driven by
+  the real frequency spectrum around a rest-height envelope shaped like
+  the source mark, so it stays recognizable at rest and comes alive with
+  the music. Bass swells the whole mark; treble flashes it bright on
+  transients.
 
 ## How the audio analysis works
 
@@ -114,10 +128,10 @@ One `AnalyserNode` per component instance (not three separate filter
 chains — cheaper, and its FFT output already contains everything needed).
 Its frequency-domain data is used two ways every frame:
 
-- **Raw per-bin spectrum** → the Equalizer renderer's bars.
+- **Raw per-bin spectrum** → the Equalizer and Cloud renderers' bars.
 - **Bucketed into 3 Hz ranges** (bass 20-250Hz, mid 250-4000Hz, treble
-  4000Hz-Nyquist (~22kHz at the default 44.1kHz sample rate)) → Nebula and
-  Kaleidoscope's macro reactivity.
+  4000Hz-Nyquist (~22kHz at the default 44.1kHz sample rate)) → Nebula's
+  and Cloud's macro reactivity.
 
 Each band is smoothed with a fast-attack/slow-decay envelope so the
 visuals don't flicker frame to frame. See `src/audio-engine.js` for the
@@ -156,9 +170,9 @@ anything this component can work around.
 src/
   audio-engine.js         AudioContext/AnalyserNode wrapper + pure band math
   visualizers/
-    equalizer.js           bar spectrum renderer
-    nebula.js               particle swarm renderer
-    kaleidoscope.js         radial geometric renderer
+    equalizer.js           log-scale bar spectrum renderer
+    nebula.js               3D-parallax particle field renderer
+    cloud.js                 bar-and-mark shape renderer
   av-visualizer.js         the custom element (shadow DOM)
 demo/
   index.html               a full worked integration example

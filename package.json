@@ -1,7 +1,7 @@
 {
-  "name": "av-visualizer",
+  "name": "concept-visualizer",
   "version": "0.1.0",
-  "description": "Audio-reactive visualizer component for track players — real Web Audio analysis driving 3 canvas-based visual styles.",
+  "description": "A concept exploration of an audio-reactive visualizer for track players — real Web Audio analysis driving 3 canvas-based visual styles.",
   "type": "module",
   "main": "dist/av-visualizer.js",
   "files": [
