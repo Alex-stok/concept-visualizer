@@ -12,6 +12,8 @@ a design testbed for the component, and one of the three visual styles
 project isn't affiliated with, endorsed by, or trying to replicate any
 particular product.
 
+![The Nebula visual style running in the demo, with the hero's comment ticks, like/comment row, and style switcher all visible](screenshots/2.png)
+
 ## Quick start
 
 ```html
