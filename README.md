@@ -17,7 +17,10 @@ The main addition to the existing layout would be a button with an eye on it
 that sits next to the 3 dots button in the hero section of the page.
 This button transitions the hero area into the visualizer which currently has 3 
 basic modes (equalizer, nebula, and cloud). There is a fullscreen button in 
-the top right corner.All visual elements are set to only appear on mouse hover.
+the top right corner. All visual elements are set to only appear on mouse hover. 
+I wanted to maintain present functionality so the ability to comment, as well 
+as seeing the song progress and other comment tics is retained during mouse over 
+along the bottom of the visualizer.
 
 
 ![The Nebula visual style running in the demo, with the hero's comment ticks, like/comment row, and style switcher all visible](screenshots/2.png)
